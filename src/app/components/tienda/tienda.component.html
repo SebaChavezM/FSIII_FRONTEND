@@ -1,0 +1,342 @@
+<app-navbar></app-navbar>
+
+<!-- Espaciador para el header fijo -->
+<div style="margin-top: 70px;"></div>
+
+<!-- Contenido principal -->
+<div class="container mt-5">
+  <h1 class="mb-4 text-center fw-bold text-primary">Tienda</h1>
+
+  <!-- Buscador de productos -->
+  <div class="input-group mb-4">
+    <input
+      type="text"
+      class="form-control"
+      placeholder="Buscar productos"
+      [(ngModel)]="searchQuery"
+      (keyup)="searchProductos()"
+    />
+    <button class="btn btn-outline-primary" type="button" (click)="searchProductos()">
+      Buscar
+    </button>
+  </div>
+
+  <!-- Botón visible solo para administradores -->
+  <div class="d-flex justify-content-end mb-3" *ngIf="isAdmin">
+    <button class="btn btn-primary" (click)="openModal()">
+      <i class="bi bi-plus-circle"></i> Crear Producto
+    </button>
+  </div>
+
+  <!-- Lista de productos -->
+  <div class="row g-4">
+    <div class="col-md-4 col-sm-6" *ngFor="let producto of productos">
+      <div class="card h-100 shadow-sm">
+        <img
+          [src]="producto.imageUrl"
+          class="card-img-top rounded-top"
+          alt="{{ producto.name }}"
+          style="max-height: 200px; object-fit: cover;"
+        />
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title text-truncate">{{ producto.name }}</h5>
+          <p class="card-text text-muted small">{{ producto.description }}</p>
+          <p class="card-text">
+            <strong>Precio:</strong> {{ formatPrice(producto.price) }}
+          </p>
+          <p
+            class="card-text fw-bold"
+            [class.text-danger]="producto.stock === 0"
+            [class.text-success]="producto.stock > 0"
+          >
+            <strong>Stock:</strong> {{ producto.stock > 0 ? producto.stock : "Sin stock" }}
+          </p>
+          <div class="mt-auto">
+            <!-- Botones para el administrador -->
+            <div *ngIf="isAdmin" class="d-flex justify-content-between">
+              <button class="btn btn-warning btn-sm" (click)="openEditModal(producto)">
+                <i class="bi bi-pencil"></i> Editar
+              </button>
+              <button class="btn btn-danger btn-sm" (click)="openDeleteModal(producto)">
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
+            <!-- Botones para usuarios regulares -->
+            <div *ngIf="!isAdmin" class="d-flex gap-2 mt-2">
+              <a [routerLink]="['/producto', producto.id]" class="btn btn-info btn-sm flex-grow-1">
+                Ver Producto
+              </a>
+              <button
+                class="btn btn-success btn-sm flex-grow-1"
+                [disabled]="producto.stock === 0"
+                (click)="addToCart(producto)"
+              >
+                Añadir al Carrito
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para confirmar eliminación -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteProductModalLabel">Confirmar Eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        ¿Está seguro que desea eliminar el producto <strong>{{ selectedProduct?.name }}</strong>?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" (click)="deleteProduct()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para editar producto -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editProductModalLabel">Editar Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="editForm" (ngSubmit)="updateProduct()">
+          <!-- Nombre del producto -->
+          <div class="mb-3">
+            <label for="editName" class="form-label">Nombre del producto</label>
+            <input
+              type="text"
+              id="editName"
+              class="form-control"
+              formControlName="name"
+              [class.is-invalid]="editForm.get('name')?.invalid && editForm.get('name')?.touched"
+            />
+            <div *ngIf="editForm.get('name')?.invalid && editForm.get('name')?.touched" class="invalid-feedback">
+              El nombre es obligatorio.
+            </div>
+          </div>
+          <!-- Descripción -->
+          <div class="mb-3">
+            <label for="editDescription" class="form-label">Descripción</label>
+            <textarea
+              id="editDescription"
+              class="form-control"
+              formControlName="description"
+              [class.is-invalid]="editForm.get('description')?.invalid && editForm.get('description')?.touched"
+            ></textarea>
+            <div *ngIf="editForm.get('description')?.invalid && editForm.get('description')?.touched" class="invalid-feedback">
+              La descripción es obligatoria.
+            </div>
+          </div>
+          <!-- Precio -->
+          <div class="mb-3">
+            <label for="editPrice" class="form-label">Precio</label>
+            <input
+              type="number"
+              id="editPrice"
+              class="form-control"
+              formControlName="price"
+              [class.is-invalid]="editForm.get('price')?.invalid && editForm.get('price')?.touched"
+            />
+            <div *ngIf="editForm.get('price')?.invalid && editForm.get('price')?.touched" class="invalid-feedback">
+              El precio debe ser un número positivo.
+            </div>
+          </div>
+          <!-- Stock -->
+          <div class="mb-3">
+            <label for="editStock" class="form-label">Stock</label>
+            <input
+              type="number"
+              id="editStock"
+              class="form-control"
+              formControlName="stock"
+              [class.is-invalid]="editForm.get('stock')?.invalid && editForm.get('stock')?.touched"
+            />
+            <div *ngIf="editForm.get('stock')?.invalid && editForm.get('stock')?.touched" class="invalid-feedback">
+              El stock debe ser un número positivo.
+            </div>
+          </div>
+          <!-- URL de la Imagen -->
+          <div class="mb-3">
+            <label for="editImageUrl" class="form-label">URL de la Imagen</label>
+            <input
+              type="url"
+              id="editImageUrl"
+              class="form-control"
+              formControlName="imageUrl"
+              [class.is-invalid]="editForm.get('imageUrl')?.invalid && editForm.get('imageUrl')?.touched"
+            />
+            <div *ngIf="editForm.get('imageUrl')?.invalid && editForm.get('imageUrl')?.touched" class="invalid-feedback">
+              La URL de la imagen debe ser válida.
+            </div>
+          </div>
+          <!-- Botón de guardar -->
+          <button type="submit" class="btn btn-primary" [disabled]="editForm.invalid">Actualizar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para crear producto -->
+<div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createProductModalLabel">Crear Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="productForm" (ngSubmit)="createProduct()">
+          <!-- Nombre del producto -->
+          <div class="mb-3">
+            <label for="name" class="form-label">Nombre del producto</label>
+            <input
+              type="text"
+              id="name"
+              class="form-control"
+              formControlName="name"
+              [class.is-invalid]="productForm.get('name')?.invalid && productForm.get('name')?.touched"
+            />
+            <div *ngIf="productForm.get('name')?.invalid && productForm.get('name')?.touched" class="invalid-feedback">
+              El nombre es obligatorio.
+            </div>
+          </div>
+          <!-- Descripción -->
+          <div class="mb-3">
+            <label for="description" class="form-label">Descripción</label>
+            <textarea
+              id="description"
+              class="form-control"
+              formControlName="description"
+              [class.is-invalid]="productForm.get('description')?.invalid && productForm.get('description')?.touched"
+            ></textarea>
+            <div *ngIf="productForm.get('description')?.invalid && productForm.get('description')?.touched" class="invalid-feedback">
+              La descripción es obligatoria.
+            </div>
+          </div>
+          <!-- Precio -->
+          <div class="mb-3">
+            <label for="price" class="form-label">Precio</label>
+            <input
+              type="number"
+              id="price"
+              class="form-control"
+              formControlName="price"
+              [class.is-invalid]="productForm.get('price')?.invalid && productForm.get('price')?.touched"
+            />
+            <div *ngIf="productForm.get('price')?.invalid && productForm.get('price')?.touched" class="invalid-feedback">
+              El precio debe ser un número positivo.
+            </div>
+          </div>
+          <!-- Stock -->
+          <div class="mb-3">
+            <label for="stock" class="form-label">Stock</label>
+            <input
+              type="number"
+              id="stock"
+              class="form-control"
+              formControlName="stock"
+              [class.is-invalid]="productForm.get('stock')?.invalid && productForm.get('stock')?.touched"
+            />
+            <div *ngIf="productForm.get('stock')?.invalid && productForm.get('stock')?.touched" class="invalid-feedback">
+              El stock debe ser un número positivo.
+            </div>
+          </div>
+          <!-- URL de la Imagen -->
+          <div class="mb-3">
+            <label for="imageUrl" class="form-label">URL de la Imagen</label>
+            <input
+              type="url"
+              id="imageUrl"
+              class="form-control"
+              formControlName="imageUrl"
+              [class.is-invalid]="productForm.get('imageUrl')?.invalid && productForm.get('imageUrl')?.touched"
+            />
+            <div *ngIf="productForm.get('imageUrl')?.invalid && productForm.get('imageUrl')?.touched" class="invalid-feedback">
+              La URL de la imagen debe ser válida.
+            </div>
+          </div>
+          <!-- Botón de guardar -->
+          <button type="submit" class="btn btn-primary" [disabled]="productForm.invalid">Guardar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div
+    id="successToast"
+    class="toast align-items-center text-bg-success border-0"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
+  >
+    <div class="d-flex">
+      <div class="toast-body">
+        Producto eliminado correctamente.
+      </div>
+      <button
+        type="button"
+        class="btn-close btn-close-white me-2 m-auto"
+        data-bs-dismiss="toast"
+        aria-label="Close"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer id="footer" class="footer position-relative light-background">
+  <div class="container footer-top">
+    <div class="row gy-4">
+      <div class="col-lg-4 col-md-6 footer-about">
+        <a href="/home" class="logo d-flex align-items-center">
+          <img src="assets/img/LogoCompleto.png" alt="Logo DigitalVault" style="max-height: 50px; margin-right: 10px;">
+        </a>
+        <div class="footer-contact pt-3">
+          <p>Dirección: Calle Principal 123, Ciudad Digital</p>
+          <p>Teléfono: <span>+56 9 1234 1234</span></p>
+          <p>Email: <span>infodigitalvault.com</span></p>
+        </div>
+        <div class="social-links d-flex mt-4">
+          <a href="https://twitter.com" target="_blank"><i class="bi bi-twitter"></i></a>
+          <a href="https://facebook.com" target="_blank"><i class="bi bi-facebook"></i></a>
+          <a href="https://instagram.com" target="_blank"><i class="bi bi-instagram"></i></a>
+          <a href="https://linkedin.com" target="_blank"><i class="bi bi-linkedin"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-3 footer-links">
+        <h4>Enlaces rápidos</h4>
+        <ul>
+          <li><a href="/home">Inicio</a></li>
+          <li><a href="/home#about">Sobre nosotros</a></li>
+          <li><a href="/home#features">Tienda</a></li>
+          <li><a href="/contact">Contacto</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-2 col-md-3 footer-links">
+        <h4>Servicios</h4>
+        <ul>
+          <li><a href="#">Asesoramiento personalizado</a></li>
+          <li><a href="#">Última tecnología</a></li>
+          <li><a href="#">Soporte técnico</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="container copyright text-center mt-4">
+    <p>© <strong>DIGITALVAULT</strong> 2024. Todos los derechos reservados.</p>
+    <p>Diseñado con ❤️ por <a href="#">Sebastián Chávez Musre</a></p>
+  </div>
+</footer>

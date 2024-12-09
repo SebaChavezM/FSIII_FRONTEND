@@ -1,0 +1,145 @@
+<header id="header" class="header d-flex align-items-center fixed-top">
+  <div class="container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
+    <!-- Logo -->
+    <a href="/home" class="logo d-flex align-items-center me-auto">
+      <img src="assets/img/LogoCompleto.png" alt="Logo DigitalVault">
+    </a>
+
+    <!-- Menú de Navegación -->
+    <nav id="navmenu" class="navmenu">
+      <ul>
+        <li><a href="/home#hero" class="active">Inicio</a></li>
+        <li><a routerLink="/account">Datos de la cuenta</a></li>
+        <li><a routerLink="/tienda">Tienda</a></li>
+        <li class="dropdown">
+          <a href="#"><span>{{ userEmail }}</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+          <ul>
+            <li><a routerLink="/account">Datos de la cuenta</a></li>
+            <li><a href="#" (click)="logout()">Cerrar sesión</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Ícono del Carrito -->
+    <button
+      class="btn btn-outline-primary position-relative ms-3"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#cartOffcanvas"
+      aria-controls="cartOffcanvas"
+    >
+      <i class="bi bi-cart"></i>
+      <span
+        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+      >
+        {{ cartItems.length }}
+      </span>
+    </button>
+
+    <!-- Botón para el menú móvil -->
+    <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+  </div>
+</header>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas" aria-labelledby="cartOffcanvasLabel">
+  <div class="offcanvas-header bg-primary text-white">
+    <h5 class="offcanvas-title" id="cartOffcanvasLabel">🛒 Mi Carrito</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div *ngIf="cartItems.length > 0; else emptyCart">
+      <!-- Lista de productos en el carrito -->
+      <div *ngFor="let item of cartItems; let i = index" class="cart-item mb-3 p-2 border rounded">
+        <div class="d-flex align-items-center">
+          <img 
+            [src]="item.imageUrl" 
+            alt="{{ item.name }}" 
+            class="rounded" 
+            style="width: 60px; height: 60px; object-fit: cover; margin-right: 10px;">
+          <div class="flex-grow-1">
+            <p class="mb-1"><strong>{{ item.name }}</strong></p>
+            <p class="mb-0 text-muted">Precio: {{ formatPrice(item.price) }}</p>
+          </div>
+          <div class="d-flex align-items-center">
+            <button 
+              (click)="decreaseQuantity(i)" 
+              class="btn btn-outline-secondary btn-sm me-2"
+              [disabled]="item.quantity === 1">-</button>
+            <span class="fw-bold">{{ item.quantity }}</span>
+            <button 
+              (click)="increaseQuantity(i)" 
+              class="btn btn-outline-secondary btn-sm ms-2"
+              [disabled]="item.quantity >= item.stock">+</button>
+          </div>
+          <button (click)="removeItem(i)" class="btn btn-danger btn-sm ms-3">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+      <hr>
+      <!-- Total del carrito -->
+      <div class="d-flex justify-content-between align-items-center">
+        <strong>Total:</strong>
+        <h5 class="mb-0">{{ formatPrice(cartTotal) }}</h5>
+      </div>
+      <!-- Botón de Pagar -->
+      <button class="btn btn-success w-100 mt-3" (click)="checkout()">
+        <i class="bi bi-bag-check"></i> Pagar
+      </button>
+    </div>
+
+    <!-- Estado del carrito vacío -->
+    <ng-template #emptyCart>
+      <div class="text-center py-5">
+        <i class="bi bi-cart-x fs-1 text-muted"></i>
+        <p class="mt-3">Tu carrito está vacío. ¡Añade productos para comenzar!</p>
+      </div>
+    </ng-template>
+  </div>
+</div>
+
+<!-- Toast para agregar producto al carrito -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div
+    id="cartAddToast"
+    class="toast align-items-center text-bg-success border-0"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
+  >
+    <div class="d-flex">
+      <div class="toast-body">
+        Producto añadido correctamente al carrito.
+      </div>
+      <button
+        type="button"
+        class="btn-close btn-close-white me-2 m-auto"
+        data-bs-dismiss="toast"
+        aria-label="Close"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast para confirmar la compra -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div
+    id="checkoutToast"
+    class="toast align-items-center text-bg-success border-0"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
+  >
+    <div class="d-flex">
+      <div class="toast-body">
+        ¡Compra realizada con éxito!
+      </div>
+      <button
+        type="button"
+        class="btn-close btn-close-white me-2 m-auto"
+        data-bs-dismiss="toast"
+        aria-label="Close"
+      ></button>
+    </div>
+  </div>
+</div>

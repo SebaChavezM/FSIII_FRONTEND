@@ -1,0 +1,40 @@
+<app-navbar></app-navbar>
+
+<div class="container mt-5">
+  <h1 class="text-center text-primary mb-4">Mi Cuenta</h1>
+
+  <!-- Tarjeta con los datos del usuario -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Información de la Cuenta</h5>
+    </div>
+    <div class="card-body">
+      <!-- Correo Electrónico -->
+      <div class="mb-3">
+        <strong>Correo Electrónico:</strong>
+        <p class="text-muted">{{ userEmail }}</p>
+      </div>
+
+      <!-- Nombre del Usuario -->
+      <div class="mb-3">
+        <strong>Nombre:</strong>
+        <p class="text-muted">{{ userData.name || 'No disponible' }}</p>
+      </div>
+
+      <!-- Rol -->
+      <div class="mb-3">
+        <strong>Rol:</strong>
+        <p class="text-muted">{{ userData.role || 'Usuario' }}</p>
+      </div>
+
+      <!-- Fecha de Registro -->
+      <div class="mb-3">
+        <strong>Fecha de Registro:</strong>
+        <p class="text-muted">{{ userData.createdAt || 'No disponible' }}</p>
+      </div>
+    </div>
+    <div class="card-footer text-end">
+      <button class="btn btn-warning" (click)="editProfile()">Editar Perfil</button>
+    </div>
+  </div>
+</div>
