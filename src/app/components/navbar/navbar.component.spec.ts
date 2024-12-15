@@ -91,11 +91,20 @@ describe('NavbarComponent', () => {
     expect(component.cartTotal).toBe(100);
   });
 
+  it('should not decrease quantity below 1', () => {
+    component.cartItems = [{ id: 1, price: 100, quantity: 1, stock: 5 }];
+    component.decreaseQuantity(0);
+
+    expect(component.cartItems[0].quantity).toBe(1);
+    expect(component.cartTotal).toBe(100);
+  });
+
   it('should remove an item from the cart', () => {
     component.cartItems = [
       { id: 1, price: 100, quantity: 2, stock: 5 },
       { id: 2, price: 200, quantity: 1, stock: 5 },
     ];
+
     cartServiceSpy.removeItem.and.callFake((index: number) => {
       component.cartItems.splice(index, 1);
     });
@@ -138,6 +147,37 @@ describe('NavbarComponent', () => {
   it('should format price correctly', () => {
     const formattedPrice = component.formatPrice(1234.56);
 
-    expect(formattedPrice).toBe('$1,234.56');
+    // Asegúrate de usar el formato del método (es-CL o en-US)
+    expect(formattedPrice).toBe('$1.235'); // Formato es-CL
+  });
+
+  it('should handle invalid indices in removeItem gracefully', () => {
+    spyOn(console, 'warn');
+    component.removeItem(-1); // Índice no válido
+
+    expect(console.warn).toHaveBeenCalledWith(
+      'Índice -1 inválido al intentar eliminar.'
+    );
+
+    component.removeItem(10); // Índice fuera de rango
+    expect(console.warn).toHaveBeenCalledWith(
+      'Índice 10 inválido al intentar eliminar.'
+    );
+  });
+
+  it('should recalculate total when cart items are updated', () => {
+    component.cartItems = [
+      { id: 1, price: 100, quantity: 1, stock: 5 },
+      { id: 2, price: 200, quantity: 2, stock: 5 },
+    ];
+
+    component.calculateTotal();
+
+    expect(component.cartTotal).toBe(500);
+  });
+
+  it('should call logout from authService', () => {
+    component.logout();
+    expect(authServiceSpy.logout).toHaveBeenCalled();
   });
 });

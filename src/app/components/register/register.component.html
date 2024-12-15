@@ -1,61 +1,91 @@
 <section class="section register min-vh-100 d-flex flex-column align-items-center justify-content-center py-4">
-    <div class="container">
-      <div class="row justify-content-center">
-        <div class="col-lg-4 col-md-6 d-flex flex-column align-items-center justify-content-center">
-  
-          <div class="d-flex justify-content-center py-4">
-            <a href="#" class="logo d-flex align-items-center w-auto">
-              <img src="assets/img/LogoCompleto.png" alt="Logo DigitalVault">
-            </a>
-          </div>
-  
-          <div class="card mb-3">
-            <div class="card-body">
-              <div class="pt-4 pb-2">
-                <h5 class="card-title text-center pb-0 fs-4">Crea tu cuenta</h5>
-                <p class="text-center small">Por favor, ingresa tus datos para registrarte</p>
-              </div>
-  
-              <form (ngSubmit)="onRegister()" #registerForm="ngForm" class="row g-3 needs-validation">
-                <div class="col-12">
-                  <label for="name" class="form-label">Nombre</label>
-                  <input type="text" [(ngModel)]="registerData.name" name="name" class="form-control" id="name" required>
-                  <div class="invalid-feedback">Por favor ingresa tu nombre.</div>
-                </div>
-  
-                <div class="col-12">
-                  <label for="email" class="form-label">Correo electrónico</label>
-                  <input type="email" [(ngModel)]="registerData.email" name="email" class="form-control" id="email" required>
-                  <div class="invalid-feedback">Por favor ingresa un correo válido.</div>
-                </div>
-  
-                <div class="col-12">
-                  <label for="password" class="form-label">Contraseña</label>
-                  <input type="password" [(ngModel)]="registerData.password" name="password" class="form-control" id="password" required>
-                  <div class="form-text">
-                    La contraseña debe tener entre 8 y 20 caracteres, incluir al menos una letra, un número y un carácter especial.
-                  </div>
-                  <div class="invalid-feedback">Por favor ingresa una contraseña válida.</div>
-                </div>
-  
-                <div class="col-12">
-                  <label for="confirmPassword" class="form-label">Repetir Contraseña</label>
-                  <input type="password" [(ngModel)]="registerData.confirmPassword" name="confirmPassword" class="form-control" id="confirmPassword" required>
-                  <div class="invalid-feedback">Por favor repite tu contraseña.</div>
-                </div>
-  
-                <div class="col-12">
-                  <button class="btn btn-primary w-100" type="submit" [disabled]="registerForm.invalid">Registrar</button>
-                </div>
-                <div class="col-12">
-                  <button type="button" class="btn btn-link w-100 text-center" routerLink="/login">Volver al inicio de sesión</button>
-                </div>
-              </form>
-            </div>
-          </div>
-  
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-4 col-md-6 d-flex flex-column align-items-center justify-content-center">
+
+        <div class="d-flex justify-content-center py-4">
+          <a href="#" class="logo d-flex align-items-center w-auto">
+            <img src="assets/img/LogoCompleto.png" alt="Logo DigitalVault">
+          </a>
         </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="pt-4 pb-2">
+              <h5 class="card-title text-center pb-0 fs-4">Crea tu cuenta</h5>
+              <p class="text-center small">Por favor, ingresa tus datos para registrarte</p>
+            </div>
+
+            <form (ngSubmit)="onRegister()" #registerForm="ngForm" class="row g-3 needs-validation">
+              <div class="col-12">
+                <label for="name" class="form-label">Nombre</label>
+                <input
+                  type="text"
+                  [(ngModel)]="registerData.name"
+                  name="name"
+                  class="form-control"
+                  id="name"
+                  required
+                />
+                <div class="invalid-feedback">Por favor ingresa tu nombre.</div>
+              </div>
+
+              <div class="col-12">
+                <label for="email" class="form-label">Correo electrónico</label>
+                <input
+                  type="email"
+                  [(ngModel)]="registerData.email"
+                  name="email"
+                  class="form-control"
+                  id="email"
+                  required
+                />
+                <div class="invalid-feedback">Por favor ingresa un correo válido.</div>
+              </div>
+
+              <div class="col-12">
+                <label for="password" class="form-label">Contraseña</label>
+                <input
+                  type="password"
+                  [(ngModel)]="registerData.password"
+                  name="password"
+                  class="form-control"
+                  id="password"
+                  required
+                />
+                <div class="form-text">
+                  La contraseña debe tener entre 8 y 20 caracteres, incluir al menos una letra, un número y un carácter
+                  especial.
+                </div>
+                <div class="invalid-feedback">Por favor ingresa una contraseña válida.</div>
+              </div>
+
+              <div class="col-12">
+                <label for="confirmPassword" class="form-label">Repetir Contraseña</label>
+                <input
+                  type="password"
+                  [(ngModel)]="registerData.confirmPassword"
+                  name="confirmPassword"
+                  class="form-control"
+                  id="confirmPassword"
+                  required
+                />
+                <div class="invalid-feedback">Por favor repite tu contraseña.</div>
+              </div>
+
+              <div class="col-12">
+                <button class="btn btn-primary w-100" type="submit" [disabled]="registerForm.invalid">Registrar</button>
+              </div>
+              <div class="col-12">
+                <button type="button" class="btn btn-link w-100 text-center" routerLink="/login">
+                  Volver al inicio de sesión
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
-  </section>
-  
+  </div>
+</section>

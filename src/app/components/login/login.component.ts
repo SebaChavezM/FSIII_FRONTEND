@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'app-login',
@@ -13,52 +14,53 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   email: string = '';
   password: string = '';
-  errorMessage: string = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private toastr: ToastrService
+  ) {}
 
   onSubmit(): void {
-    this.errorMessage = ''; // Reinicia el mensaje de error
-  
-    // Recortar email y password
     const emailTrimmed = this.email.trim();
     const passwordTrimmed = this.password.trim();
   
-    // Validar campos vacíos
     if (!emailTrimmed || !passwordTrimmed) {
-      this.errorMessage = 'Por favor ingrese su correo electrónico y contraseña.';
+      this.toastr.warning('Por favor, ingresa tu correo electrónico y contraseña.', 'Campos vacíos');
       return;
     }
   
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrimmed)) {
-      this.errorMessage = 'Por favor, ingrese un correo electrónico válido.';
-      return;
-    }
-  
-    this.authService.login(emailTrimmed, passwordTrimmed).subscribe(
-      (response) => {
+    this.authService.login(emailTrimmed, passwordTrimmed).subscribe({
+      next: (response) => {
         if (response && response.role) {
-          this.router.navigate(['/home']);
-          this.errorMessage = '';
-          this.email = '';
-          this.password = '';
+          localStorage.clear(); // Limpiar cualquier dato previo
+          localStorage.setItem('user', JSON.stringify(response)); // Guardar datos nuevos
+          this.toastr.success('Inicio de sesión exitoso.', 'Éxito');
+          this.router.navigate(['/home']); // Redirigir a la página principal
         } else {
-          this.errorMessage = 'Credenciales inválidas';
+          this.toastr.error('Credenciales inválidas. Por favor, verifica tus datos.', 'Error de inicio de sesión');
         }
       },
-      (error) => {
-        this.errorMessage = error.message || 'Credenciales inválidas';
-      }
-    );
-  }  
+      error: (err) => {
+        const errorMessage = err.message || 'Ocurrió un error durante el inicio de sesión. Inténtalo nuevamente.';
+        this.toastr.error(errorMessage, 'Error');
+      },
+    });
+  }   
 
+  // Método para navegar a la página de registro
   goToRegister(): void {
     this.router.navigate(['/register']);
   }
 
+  // Método para navegar a la página de recuperación de contraseña
   goToForgotPassword(): void {
     this.router.navigate(['/forgot-password']);
+  }
+
+  // Método para limpiar los campos del formulario
+  private resetForm(): void {
+    this.email = '';
+    this.password = '';
   }
 }

@@ -1,113 +1,169 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AccountComponent } from './account.component';
-import { AuthService } from '../../services/auth.service';
-import { of, throwError } from 'rxjs';
-import { NavbarComponent } from '../navbar/navbar.component';
+import { FormsModule } from '@angular/forms';
+import { ToastrModule, ToastrService } from 'ngx-toastr';
 import { CommonModule } from '@angular/common';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { RouterTestingModule } from '@angular/router/testing'; // Import para ActivatedRoute
+import { By } from '@angular/platform-browser';
+import { ActivatedRoute } from '@angular/router';
 
 describe('AccountComponent', () => {
   let component: AccountComponent;
   let fixture: ComponentFixture<AccountComponent>;
-  let authServiceSpy: jasmine.SpyObj<AuthService>;
+  let httpMock: HttpTestingController;
+  let toastrService: ToastrService;
 
   beforeEach(async () => {
-    const authServiceMock = jasmine.createSpyObj('AuthService', ['getUserEmail', 'getUserDetails']);
-
     await TestBed.configureTestingModule({
+      declarations: [],
       imports: [
-        AccountComponent, // Importa el componente standalone
-        NavbarComponent, // Importa el componente standalone
-        CommonModule,
         HttpClientTestingModule,
-        RouterTestingModule, // Proporciona ActivatedRoute
+        CommonModule,
+        FormsModule,
+        ToastrModule.forRoot(),
       ],
       providers: [
-        { provide: AuthService, useValue: authServiceMock }, // Mockea AuthService
+        ToastrService,
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'test' } } }, // Mock para ActivatedRoute
+        },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AccountComponent);
     component = fixture.componentInstance;
-    authServiceSpy = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
+    httpMock = TestBed.inject(HttpTestingController);
+    toastrService = TestBed.inject(ToastrService);
+    fixture.detectChanges();
   });
 
-  it('should create the component', () => {
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('debería crear el componente', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should set userEmail on initialization', () => {
-    const mockEmail = 'test@example.com';
-    authServiceSpy.getUserEmail.and.returnValue(mockEmail);
+  describe('ngOnInit', () => {
+    it('debería inicializar los datos del usuario desde localStorage', () => {
+      const mockUser = {
+        email: 'test@example.com',
+        name: 'Test User',
+        direccion: 'Test Address',
+        telefono: '123456789',
+        role: 'Admin',
+        createdAt: '2023-12-01T00:00:00Z',
+      };
 
-    fixture.detectChanges(); // Activa ngOnInit()
+      spyOn(localStorage, 'getItem').and.returnValue(JSON.stringify(mockUser));
 
-    expect(component.userEmail).toBe(mockEmail);
-    expect(authServiceSpy.getUserEmail).toHaveBeenCalled();
+      component.ngOnInit();
+
+      expect(component.userEmail).toBe(mockUser.email);
+      expect(component.userData.name).toBe(mockUser.name);
+      expect(component.userData.direccion).toBe(mockUser.direccion);
+      expect(component.userData.telefono).toBe(mockUser.telefono);
+      expect(component.userData.role).toBe(mockUser.role);
+      expect(component.userData.createdAt).toBe('1 de diciembre de 2023');
+    });
+
+    it('debería manejar usuarios no existentes en localStorage', () => {
+      spyOn(localStorage, 'getItem').and.returnValue(null);
+
+      component.ngOnInit();
+
+      expect(component.userEmail).toBe('No disponible');
+      expect(component.userData.name).toBe('No disponible');
+    });
   });
 
-  it('should fetch user details on initialization', () => {
-    const mockUserDetails = { name: 'John Doe', role: 'Admin' };
-    authServiceSpy.getUserEmail.and.returnValue('test@example.com'); // Mockea el email
-    authServiceSpy.getUserDetails.and.returnValue(of(mockUserDetails)); // Mockea la respuesta de getUserDetails
+  describe('updateUser', () => {
+    it('debería enviar datos al servidor y actualizar localStorage', () => {
+      const updatedData = {
+        name: 'Updated Name',
+        direccion: 'Updated Address',
+        telefono: '987654321',
+      };
 
-    fixture.detectChanges(); // Activa ngOnInit()
+      spyOn(localStorage, 'getItem').and.returnValue(
+        JSON.stringify({
+          email: 'test@example.com',
+          name: 'Test User',
+          direccion: 'Test Address',
+          telefono: '123456789',
+          role: 'Admin',
+        })
+      );
 
-    expect(component.userData).toEqual(mockUserDetails);
-    expect(authServiceSpy.getUserDetails).toHaveBeenCalled();
+      spyOn(localStorage, 'setItem');
+
+      component.userData = updatedData;
+
+      component.updateUser();
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/update');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual(updatedData);
+
+      req.flush(updatedData);
+
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'user',
+        JSON.stringify({
+          email: 'test@example.com',
+          name: 'Updated Name',
+          direccion: 'Updated Address',
+          telefono: '987654321',
+          role: 'Admin',
+        })
+      );
+
+      expect(component.userData.name).toBe(updatedData.name);
+    });
+
+    it('debería manejar errores del servidor y mostrar un mensaje de error', () => {
+      const updatedData = {
+        name: 'Updated Name',
+        direccion: 'Updated Address',
+        telefono: '987654321',
+      };
+
+      spyOn(toastrService, 'error');
+
+      component.userData = updatedData;
+
+      component.updateUser();
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/update');
+      expect(req.request.method).toBe('PUT');
+      req.flush({ message: 'Error' }, { status: 500, statusText: 'Server Error' });
+
+      expect(toastrService.error).toHaveBeenCalledWith(
+        'Ocurrió un error al actualizar los datos.',
+        'Error'
+      );
+    });
   });
 
-  it('should handle errors when fetching user details', () => {
-    spyOn(console, 'error');
-    authServiceSpy.getUserEmail.and.returnValue('test@example.com'); // Mockea el email
-    authServiceSpy.getUserDetails.and.returnValue(throwError(() => new Error('Error al cargar datos')));
+  describe('UI Interactions', () => {
+    it('debería actualizar los datos cuando el formulario es enviado', () => {
+      component.userData.name = 'New Name';
+      component.userData.direccion = 'New Address';
+      component.userData.telefono = '111222333';
 
-    fixture.detectChanges(); // Activa ngOnInit()
+      const button = fixture.debugElement.query(By.css('button'));
+      button.triggerEventHandler('click', null);
 
-    expect(component.userData).toEqual({});
-    expect(console.error).toHaveBeenCalledWith('Error al cargar los datos del usuario:', jasmine.any(Error));
-  });
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/update');
+      expect(req.request.body).toEqual({
+        name: 'New Name',
+        direccion: 'New Address',
+        telefono: '111222333',
+      });
 
-  it('should set userEmail to empty if getUserEmail returns an empty string', () => {
-    authServiceSpy.getUserEmail.and.returnValue(''); // Mockea que no hay usuario autenticado
-  
-    fixture.detectChanges(); // Activa ngOnInit()
-  
-    expect(component.userEmail).toBe(''); // Espera una cadena vacía
-  });  
-
-  it('should handle empty response from getUserDetails gracefully', () => {
-    authServiceSpy.getUserEmail.and.returnValue('test@example.com'); // Mockea el email
-    authServiceSpy.getUserDetails.and.returnValue(of(null)); // Simula un caso donde el backend no devuelve datos
-
-    fixture.detectChanges(); // Activa ngOnInit()
-
-    expect(component.userData).toEqual({});
-  });
-
-  it('should display an alert when editProfile is called', () => {
-    spyOn(window, 'alert');
-    component.editProfile();
-    expect(window.alert).toHaveBeenCalledWith('Funcionalidad para editar el perfil no implementada aún.');
-  });
-
-  it('should handle empty response from getUserDetails gracefully', () => {
-    authServiceSpy.getUserEmail.and.returnValue('test@example.com'); // Mockea el email
-    authServiceSpy.getUserDetails.and.returnValue(of(null)); // Simula un caso donde el backend no devuelve datos
-  
-    fixture.detectChanges(); // Activa ngOnInit()
-  
-    expect(component.userData).toEqual({}); // Verifica que no hay datos en el usuario
-  });
-  
-  it('should not break if editProfile is called without alert function', () => {
-    spyOn(window, 'alert').and.throwError('Error de alerta'); // Simula un error en el alert
-    expect(() => component.editProfile()).not.toThrow(); // Asegura que no lance una excepción
-  });  
-
-  it('should not break if editProfile is called without alert function', () => {
-    spyOn(window, 'alert').and.throwError('Error de alerta'); // Simula un error en el alert
-    expect(() => component.editProfile()).not.toThrow(); // Asegura que no lance una excepción
+      req.flush({ success: true });
+    });
   });
 });

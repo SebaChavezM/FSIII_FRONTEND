@@ -13,7 +13,6 @@ describe('ForgotPasswordComponent', () => {
   let routerSpy: jasmine.SpyObj<Router>;
 
   beforeEach(async () => {
-    // Creamos spies para los servicios que usaremos
     const toastrSpy = jasmine.createSpyObj('ToastrService', ['success', 'error']);
     const routerSpyObj = jasmine.createSpyObj('Router', ['navigate']);
 
@@ -21,11 +20,11 @@ describe('ForgotPasswordComponent', () => {
       imports: [
         HttpClientTestingModule,
         RouterTestingModule,
-        ForgotPasswordComponent, // Importamos el componente standalone
+        ForgotPasswordComponent,
       ],
       providers: [
-        { provide: ToastrService, useValue: toastrSpy }, // Mock de ToastrService
-        { provide: Router, useValue: routerSpyObj }, // Mock de Router
+        { provide: ToastrService, useValue: toastrSpy },
+        { provide: Router, useValue: routerSpyObj },
       ],
     }).compileComponents();
 
@@ -37,7 +36,7 @@ describe('ForgotPasswordComponent', () => {
   });
 
   afterEach(() => {
-    httpMock.verify(); // Verificamos que no haya solicitudes HTTP pendientes
+    httpMock.verify();
   });
 
   it('should create the component', () => {
@@ -90,8 +89,8 @@ describe('ForgotPasswordComponent', () => {
       'Email enviado correctamente',
       'Éxito'
     );
-    expect(component.email).toBe(''); // Asegura que el campo email se reinicia
-    expect(component.isLoading).toBeFalse(); // Asegura que isLoading vuelva a false
+    expect(component.email).toBe('');
+    expect(component.isLoading).toBeFalse();
   });
 
   it('should handle server errors gracefully', () => {
@@ -106,17 +105,17 @@ describe('ForgotPasswordComponent', () => {
       'Ha ocurrido un error inesperado.',
       'Error'
     );
-    expect(component.isLoading).toBeFalse(); // Asegura que isLoading vuelva a false
+    expect(component.isLoading).toBe(false);
   });
 
   it('should not allow multiple submissions while loading', () => {
     component.email = 'test@example.com';
-    component.isLoading = true; // Simulamos que ya se está cargando
+    component.isLoading = true;
 
     component.onSubmit();
 
     const req = httpMock.match('http://localhost:8081/api/auth/forgot-password');
-    expect(req.length).toBe(0); // No debería haber solicitudes pendientes
+    expect(req.length).toBe(0);
   });
 
   it('should navigate to login page on goToLogin()', () => {

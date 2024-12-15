@@ -8,12 +8,20 @@ describe('AuthService', () => {
   let httpMock: HttpTestingController;
   let routerSpy: jasmine.SpyObj<Router>;
 
+  const mockUser = {
+    name: 'John Doe',
+    email: 'john@example.com',
+    role: 'USER',
+    direccion: 'Address',
+    telefono: '123456789',
+  };
+
   beforeEach(() => {
     const routerSpyObj = jasmine.createSpyObj('Router', ['navigate']);
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [AuthService, { provide: Router, useValue: routerSpyObj }],
+      providers: [{ provide: Router, useValue: routerSpyObj }],
     });
 
     service = TestBed.inject(AuthService);
@@ -22,144 +30,153 @@ describe('AuthService', () => {
   });
 
   afterEach(() => {
-    httpMock.verify(); // Verifica que no haya solicitudes HTTP pendientes
+    httpMock.verify();
+    localStorage.clear(); // Limpia el localStorage después de cada prueba
   });
 
-  it('should be created', () => {
+  it('debería crearse correctamente', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should login and store user in localStorage', () => {
-    const mockResponse = { user: { email: 'test@example.com', role: 'USER' } };
+  describe('login', () => {
+    it('debería enviar los datos correctos al iniciar sesión', () => {
+      const mockResponse = { token: '12345', user: mockUser };
 
-    service.login('test@example.com', 'password123').subscribe((response) => {
-      expect(response).toEqual(mockResponse);
+      service.login('john@example.com', 'password').subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/login');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ email: 'john@example.com', password: 'password' });
+      req.flush(mockResponse);
+    });
+  });
+
+  describe('updateUser', () => {
+    it('debería actualizar los datos del usuario y almacenarlos en localStorage', () => {
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      const updatedData = { name: 'Jane Doe', direccion: 'New Address', telefono: '987654321' };
+
+      service.updateUser(updatedData).subscribe((response) => {
+        expect(response).toEqual({ success: true });
+        const updatedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        expect(updatedUser.name).toBe('Jane Doe');
+        expect(updatedUser.direccion).toBe('New Address');
+        expect(updatedUser.telefono).toBe('987654321');
+      });
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/update');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual(updatedData);
+      req.flush({ success: true });
     });
 
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/login');
-    expect(req.request.method).toBe('POST');
-    req.flush(mockResponse);
+    it('debería manejar errores al actualizar los datos del usuario', () => {
+      service.updateUser({ name: 'Jane', direccion: '', telefono: '' }).subscribe({
+        next: () => fail('Debería haber fallado'),
+        error: (error) => {
+          expect(error.status).toBe(500);
+        },
+      });
 
-    const storedUser = JSON.parse(localStorage.getItem('user')!);
-    expect(storedUser.email).toBe('test@example.com');
-    expect(storedUser.role).toBe('USER');
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/update');
+      req.flush({ message: 'Error interno' }, { status: 500, statusText: 'Server Error' });
+    });
   });
 
-  it('should handle failed login attempts', () => {
-    service.login('test@example.com', 'wrongpassword').subscribe((response) => {
-      expect(response).toBeNull();
+  describe('getRole', () => {
+    it('debería devolver el rol del usuario desde localStorage', () => {
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      const role = service.getRole();
+      expect(role).toBe('USER');
     });
 
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/login');
-    expect(req.request.method).toBe('POST');
-    req.flush({ message: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
-
-    expect(localStorage.getItem('user')).toBeNull();
+    it('debería devolver "USER" si no hay un rol en localStorage', () => {
+      localStorage.removeItem('user');
+      const role = service.getRole();
+      expect(role).toBe('USER');
+    });
   });
 
-  it('should handle unauthenticated session check', () => {
-    service.checkSession().subscribe((response) => {
-      expect(response.authenticated).toBeFalse();
-      expect(localStorage.getItem('user')).toBeNull();
+  describe('checkSession', () => {
+    it('debería verificar la sesión activa y guardar el usuario en localStorage si está autenticado', () => {
+      const mockResponse = { authenticated: true, user: mockUser };
+
+      service.checkSession().subscribe((response) => {
+        expect(response.authenticated).toBeTrue();
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        expect(storedUser).toEqual(mockUser);
+      });
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/check-session');
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResponse);
     });
 
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/check-session');
-    expect(req.request.method).toBe('GET');
-    req.flush({ authenticated: false });
-  });
+    it('debería limpiar la sesión si no está autenticado', () => {
+      spyOn(service as any, 'clearSession').and.callThrough();
 
-  it('should handle session initialization successfully', async () => {
-    const mockResponse = { authenticated: true, user: { email: 'test@example.com', role: 'USER' } };
-  
-    // Mockea el servicio HTTP
-    service.checkSession().subscribe((response) => {
-      expect(response.authenticated).toBeTrue();
-    });
-  
-    // Simula la respuesta del backend
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/check-session');
-    expect(req.request.method).toBe('GET');
-    req.flush(mockResponse);
-  
-    // Llama a initializeSession y verifica el resultado
-    const isInitialized = await service.initializeSession();
-    expect(isInitialized).toBeTrue();
-  });  
+      service.checkSession().subscribe((response) => {
+        expect(response.authenticated).toBeFalse();
+        expect(localStorage.getItem('user')).toBeNull();
+        expect(service.isLoggedIn()).toBeFalse();
+      });
 
-  it('should register a new user', () => {
-    const mockResponse = { message: 'User registered successfully' };
-
-    service.register('Test User', 'test@example.com', 'password123').subscribe((response) => {
-      expect(response).toEqual(mockResponse);
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/check-session');
+      req.flush({ authenticated: false });
     });
 
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/register');
-    expect(req.request.method).toBe('POST');
-    req.flush(mockResponse);
+    it('debería manejar errores y limpiar la sesión', () => {
+      spyOn(service as any, 'clearSession').and.callThrough();
+
+      service.checkSession().subscribe((response) => {
+        expect(response.authenticated).toBeFalse();
+        expect(localStorage.getItem('user')).toBeNull();
+      });
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/check-session');
+      req.error(new ErrorEvent('Network error'));
+    });
   });
 
-  it('should handle register error', () => {
-    service.register('Test User', 'test@example.com', 'password123').subscribe((response) => {
-      expect(response).toBeNull();
+  describe('logout', () => {
+    it('debería cerrar sesión y redirigir al inicio de sesión', () => {
+      spyOn(service as any, 'clearSession').and.callThrough();
+
+      service.logout();
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/logout');
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+
+      expect(service['clearSession']).toHaveBeenCalled();
+      expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
     });
 
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/register');
-    expect(req.request.method).toBe('POST');
-    req.flush({ message: 'Registration failed' }, { status: 400, statusText: 'Bad Request' });
-  });
+    it('debería manejar errores al cerrar sesión y aun así redirigir', () => {
+      spyOn(service as any, 'clearSession').and.callThrough();
 
-  it('should handle forgot password request', () => {
-    const mockResponse = { message: 'Password reset email sent' };
+      service.logout();
 
-    service.forgotPassword('test@example.com').subscribe((response) => {
-      expect(response).toEqual(mockResponse);
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/logout');
+      req.error(new ErrorEvent('Network error'));
+
+      expect(service['clearSession']).toHaveBeenCalled();
+      expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
     });
-
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/forgot-password');
-    expect(req.request.method).toBe('POST');
-    req.flush(mockResponse);
   });
 
-  it('should handle forgot password error gracefully', () => {
-    service.forgotPassword('test@example.com').subscribe((response) => {
-      expect(response).toBeNull();
+  describe('forgotPassword', () => {
+    it('debería enviar una solicitud de recuperación de contraseña', () => {
+      service.forgotPassword('john@example.com').subscribe((response) => {
+        expect(response).toEqual({ success: true });
+      });
+
+      const req = httpMock.expectOne('http://localhost:8081/api/auth/forgot-password');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ email: 'john@example.com' });
+      req.flush({ success: true });
     });
-
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/forgot-password');
-    expect(req.request.method).toBe('POST');
-    req.flush({ message: 'Reset failed' }, { status: 400, statusText: 'Bad Request' });
-  });
-
-  it('should retrieve user role from localStorage', () => {
-    localStorage.setItem('user', JSON.stringify({ role: 'ADMIN' }));
-    expect(service.getRole()).toBe('ADMIN');
-  });
-
-  it('should retrieve user email from localStorage', () => {
-    localStorage.setItem('user', JSON.stringify({ email: 'test@example.com' }));
-    expect(service.getUserEmail()).toBe('test@example.com');
-  });
-
-  it('should logout and navigate to login', () => {
-    service.logout();
-
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/logout');
-    expect(req.request.method).toBe('POST');
-    req.flush(null);
-
-    expect(localStorage.getItem('user')).toBeNull();
-    expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
-  });
-
-  it('should handle logout error gracefully', () => {
-    spyOn(console, 'error');
-
-    service.logout();
-
-    const req = httpMock.expectOne('http://localhost:8081/api/auth/logout');
-    expect(req.request.method).toBe('POST');
-    req.flush({ message: 'Logout failed' }, { status: 500, statusText: 'Server Error' });
-
-    expect(console.error).toHaveBeenCalledWith('Error al cerrar sesión:', jasmine.any(Object));
   });
 });

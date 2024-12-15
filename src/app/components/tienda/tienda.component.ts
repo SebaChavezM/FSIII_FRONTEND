@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ProductosService } from '../../services/productos.service';
 import { SearchService } from '../../services/search.service';
@@ -20,7 +20,14 @@ declare var bootstrap: any;
   styleUrls: ['./tienda.component.css'],
 })
 export class TiendaComponent implements OnInit, OnDestroy {
-  productos: any[] = [];
+  productos: { 
+    id: number; 
+    name: string; 
+    description: string; 
+    price: number; 
+    stock: number; 
+    imageUrl: string 
+  }[] = [];
   productForm: FormGroup;
   editForm: FormGroup;
   isAdmin: boolean = false;
@@ -28,8 +35,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
   searchQuery: string = '';
   selectedProductId: number | null = null;
   selectedProduct: any = null;
-  cartItems: any[] = []; // Agregada propiedad para los items del carrito
-  cartTotal: number = 0; // Agregada propiedad para el total del carrito
+  productNames: Set<string> = new Set(); // Para validar nombres duplicados
   private subscription: Subscription = new Subscription();
 
   constructor(
@@ -40,18 +46,20 @@ export class TiendaComponent implements OnInit, OnDestroy {
     private cartService: CartService,
     private eventService: EventService
   ) {
+    // Formulario de creación con validaciones personalizadas
     this.productForm = this.fb.group({
-      name: ['', Validators.required],
+      name: ['', [Validators.required, this.uniqueProductNameValidator.bind(this)]],
       description: ['', Validators.required],
-      price: [0, [Validators.required, Validators.min(0)]],
-      stock: [0, [Validators.required, Validators.min(0)]],
-      imageUrl: ['', Validators.pattern(/https?:\/\/.+/)],
+      price: [0, [Validators.required, Validators.min(0.01)]], // Precio mayor a 0
+      stock: [0, [Validators.required, Validators.min(0)]], // Stock no negativo
+      imageUrl: ['', Validators.pattern(/https?:\/\/.+/)], // URL válida
     });
 
+    // Formulario de edición con validaciones
     this.editForm = this.fb.group({
       name: ['', Validators.required],
       description: ['', Validators.required],
-      price: [0, [Validators.required, Validators.min(0)]],
+      price: [0, [Validators.required, Validators.min(0.01)]],
       stock: [0, [Validators.required, Validators.min(0)]],
       imageUrl: ['', Validators.pattern(/https?:\/\/.+/)],
     });
@@ -62,6 +70,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
     this.isAdmin = this.authService.getRole() === 'ADMIN';
     this.userEmail = this.authService.getUserEmail();
 
+    // Suscribirse al evento para recargar productos
     this.subscription.add(
       this.eventService.reloadProducts$.subscribe((reload) => {
         if (reload) {
@@ -75,20 +84,33 @@ export class TiendaComponent implements OnInit, OnDestroy {
     this.subscription.unsubscribe();
   }
 
+  // Cargar productos del servicio
   loadProductos(): void {
-    this.searchService.getAllProducts().subscribe({
-      next: (products) => {
-        this.productos = products.map((product) => ({
-          ...product,
-          imageUrl: product.imageUrl || 'https://vscda.org/wp-content/uploads/2017/03/300x300.png',
+    this.productosService.getAllProductos().subscribe({
+      next: (productos) => {
+        this.productos = productos.map((producto: any) => ({
+          ...producto,
+          imageUrl: producto.imageUrl || 'https://vscda.org/wp-content/uploads/2017/03/300x300.png', // Imagen por defecto
         }));
+        // Almacenar los nombres en un Set para validar duplicados
+        this.productNames = new Set(productos.map((producto: any) => producto.name.toLowerCase()));
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error al cargar los productos:', err);
       },
     });
-  }  
+  }
 
+  // Validación personalizada para nombres duplicados
+  uniqueProductNameValidator(control: any) {
+    const name = control.value.toLowerCase();
+    if (this.productNames.has(name)) {
+      return { duplicateName: true }; // Retorna un error si el nombre ya existe
+    }
+    return null;
+  }
+
+  // Buscar productos
   searchProductos(): void {
     if (this.searchQuery.trim()) {
       this.searchService.searchProducts(this.searchQuery).subscribe({
@@ -98,7 +120,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
             imageUrl: producto.imageUrl?.trim() || 'https://vscda.org/wp-content/uploads/2017/03/300x300.png',
           }));
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('Error al buscar productos:', err);
         },
       });
@@ -107,11 +129,13 @@ export class TiendaComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Abrir modal de creación
   openModal(): void {
     const modal = new bootstrap.Modal(document.getElementById('createProductModal')!);
     modal.show();
   }
 
+  // Crear producto
   createProduct(): void {
     if (this.productForm.valid) {
       this.productosService.createProducto(this.productForm.value).subscribe({
@@ -121,47 +145,16 @@ export class TiendaComponent implements OnInit, OnDestroy {
           modal?.hide();
           this.productForm.reset();
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('Error al crear producto:', err);
         },
       });
+    } else {
+      this.productForm.markAllAsTouched(); // Marca todos los campos como tocados
     }
   }
 
-  openDeleteModal(producto: any): void {
-    this.selectedProduct = producto;
-    const modal = new bootstrap.Modal(document.getElementById('deleteProductModal')!);
-    modal.show();
-  }
-
-  deleteProduct(): void {
-    if (this.selectedProduct) {
-      this.productosService.deleteProducto(this.selectedProduct.id).subscribe({
-        next: () => {
-          this.eventService.triggerReloadProducts();
-          const modal = bootstrap.Modal.getInstance(document.getElementById('deleteProductModal')!);
-          modal?.hide();
-          this.selectedProduct = null;
-
-          const toastElement = document.getElementById('successToast')!;
-          const toast = new bootstrap.Toast(toastElement);
-          toast.show();
-        },
-        error: (err) => {
-          console.error('Error al eliminar producto:', err);
-        },
-      });
-    }
-  }
-
-  formatPrice(price: number): string {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-    }).format(price).replace(',', '.');
-  }
-
+  // Abrir modal de edición
   openEditModal(producto: any): void {
     this.selectedProductId = producto.id;
     this.editForm.patchValue(producto);
@@ -169,6 +162,7 @@ export class TiendaComponent implements OnInit, OnDestroy {
     modal.show();
   }
 
+  // Actualizar producto
   updateProduct(): void {
     if (this.editForm.valid && this.selectedProductId) {
       this.productosService.updateProducto(this.selectedProductId, this.editForm.value).subscribe({
@@ -179,30 +173,59 @@ export class TiendaComponent implements OnInit, OnDestroy {
           this.editForm.reset();
           this.selectedProductId = null;
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('Error al actualizar producto:', err);
+        },
+      });
+    } else {
+      this.editForm.markAllAsTouched();
+    }
+  }
+
+  // Abrir modal de eliminación
+  openDeleteModal(producto: any): void {
+    this.selectedProduct = producto;
+    const modal = new bootstrap.Modal(document.getElementById('deleteProductModal')!);
+    modal.show();
+  }
+
+  // Eliminar producto
+  deleteProduct(): void {
+    if (this.selectedProduct) {
+      this.productosService.deleteProducto(this.selectedProduct.id).subscribe({
+        next: () => {
+          this.eventService.triggerReloadProducts();
+          const modal = bootstrap.Modal.getInstance(document.getElementById('deleteProductModal')!);
+          modal?.hide();
+          this.selectedProduct = null;
+        },
+        error: (err: any) => {
+          console.error('Error al eliminar producto:', err);
         },
       });
     }
   }
 
+  // Formatear precios
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+    }).format(price).replace(',', '.');
+  }
+
+  // Añadir producto al carrito
   addToCart(producto: any): void {
     if (producto.stock === 0) {
-      alert('Producto sin stock disponible.');
+      alert('Este producto no tiene stock disponible.');
       return;
     }
     this.cartService.addItem(producto);
-    this.cartItems = this.cartService.getCartItems(); // Actualizar el carrito local
-    this.cartTotal = this.cartService.getCartTotal(); // Recalcular el total
-    const toastElement = document.getElementById('cartAddToast')!;
-    const toast = new bootstrap.Toast(toastElement);
-    toast.show();
+    alert(`${producto.name} fue añadido al carrito.`);
   }
-  
-  removeItem(index: number): void {
-    this.cartService.removeItem(index);
-  }  
 
+  // Cerrar sesión
   logout(): void {
     this.authService.logout();
   }

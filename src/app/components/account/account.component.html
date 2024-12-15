@@ -18,23 +18,67 @@
       <!-- Nombre del Usuario -->
       <div class="mb-3">
         <strong>Nombre:</strong>
-        <p class="text-muted">{{ userData.name || 'No disponible' }}</p>
+        <p class="text-muted">{{ userData.name }}</p>
+      </div>
+
+      <!-- Dirección -->
+      <div class="mb-3">
+        <strong>Dirección:</strong>
+        <p class="text-muted">{{ userData.direccion || 'No disponible' }}</p>
+      </div>
+
+      <!-- Teléfono -->
+      <div class="mb-3">
+        <strong>Teléfono:</strong>
+        <p class="text-muted">{{ userData.telefono || 'No disponible' }}</p>
       </div>
 
       <!-- Rol -->
       <div class="mb-3">
         <strong>Rol:</strong>
-        <p class="text-muted">{{ userData.role || 'Usuario' }}</p>
+        <p class="text-muted">{{ userData.role }}</p>
       </div>
 
       <!-- Fecha de Registro -->
       <div class="mb-3">
         <strong>Fecha de Registro:</strong>
-        <p class="text-muted">{{ userData.createdAt || 'No disponible' }}</p>
+        <p class="text-muted">{{ userData.createdAt }}</p>
       </div>
     </div>
     <div class="card-footer text-end">
-      <button class="btn btn-warning" (click)="editProfile()">Editar Perfil</button>
+      <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editModal">Editar Perfil</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalLabel">Editar Perfil</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <div class="mb-3">
+            <label for="name" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="name" [(ngModel)]="userData.name" name="name">
+          </div>
+          <div class="mb-3">
+            <label for="direccion" class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="direccion" [(ngModel)]="userData.direccion" name="direccion">
+          </div>
+          <div class="mb-3">
+            <label for="telefono" class="form-label">Teléfono</label>
+            <input type="text" class="form-control" id="telefono" [(ngModel)]="userData.telefono" name="telefono">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="updateUser()">Guardar Cambios</button>
+      </div>
     </div>
   </div>
 </div>
